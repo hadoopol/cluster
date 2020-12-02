@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -x
+
+export PATH="/hadoop-{{version}}/bin:$PATH"
+
+if [[ ! -d /dfs ]] ; then
+    mkdir -p /dfs/dn /dfs/jn /yarn
+fi
+
+create_hdfs_struct_dirs(){
+  hdfs dfs -mkdir /user && \
+  hdfs dfs -mkdir /user/hdfs && \
+  hdfs dfs -chown hdfs /user/hdfs && \
+  hdfs dfs -mkdir /user/mapred && \
+  hdfs dfs -chown mapred /user/mapred && \
+  hdfs dfs -mkdir /user/root && \
+  hdfs dfs -chown root /user/root && \
+  hdfs dfs -mkdir /tmp && \
+  hdfs dfs -mkdir /tmp/logs && \
+  hdfs dfs -chmod -R 1777 /tmp
+}
+
+if [[ $1 == "start" ]] ;
+then
+
+        if [[ $HOSTNAME =~ {{type.journalnode.host_name}} ]] ; then
+            hdfs --daemon start journalnode
+        fi
+        if [[ $HOSTNAME =~ {{type.namenode.host_name}} ]] ; then
+            if [[ ! -d /dfs/nn ]] ; then
+                mkdir /dfs/nn
+                ####TODO
+                ####namenode1 hostname is hardcoded here. Remove
+                if [[ $HOSTNAME =~ namenode1 ]] ; then
+                    hdfs namenode -format {{clustername}}
+                    hdfs --daemon start namenode
+                else
+                    sleep 90
+                    hdfs namenode -bootstrapStandby
+                    hdfs --daemon start namenode
+                    sleep 30
+                    hdfs haadmin -transitionToActive nn1
+                    sleep 5
+                    create_hdfs_struct_dirs
+                fi
+            fi
+        fi
+        if [[ $HOSTNAME =~ {{type.datanode.host_name}} ]] ; then
+            hdfs --daemon start datanode
+        fi
+        if [[ $HOSTNAME =~ {{type.resourcemanager.host_name}} ]] ; then
+            yarn --daemon start resourcemanager
+            if [[ $HOSTNAME =~ rm1 ]] ; then
+                sleep 90
+                yarn rmadmin -transitionToActive rm1
+            fi
+        fi
+        if [[ $HOSTNAME =~  {{type.datanode.host_name}} ]] ; then
+            yarn --daemon start nodemanager
+        fi
+        if [[ $HOSTNAME =~ historyserver ]] ; then
+            mapred --daemon start historyserver
+        fi
+        if [[ $HOSTNAME =~ proxyserver ]] ; then
+            yarn --daemon start proxyserver
+        fi
+fi
+
+/bin/bash
+
+

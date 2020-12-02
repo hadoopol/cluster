@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+/zookeeper_config.py
+
+cd /apache-zookeeper-{{version}}-bin
+#java -cp zookeeper-{{version}}.jar:$(ls lib/slf4j-api-*.jar):$(ls lib/slf4j-log4j12-*.jar):$(ls lib/log4j-*.jar):conf org.apache.zookeeper.server.quorum.QuorumPeerMain /etc/zookeeper/zoo.cfg
+ln -s /etc/zookeeper/zoo.cfg /apache-zookeeper-{{version}}-bin/conf/zoo.cfg
+./bin/zkServer.sh start
+/bin/bash

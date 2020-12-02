@@ -1,0 +1,25 @@
+---
+container_domain_name: docker
+type:
+  namenode:
+    host_name: namenode
+    container_name: namenode
+    number_nodes: 2
+  datanode:
+    host_name: dn_nm
+    container_name: dn_nm
+    number_nodes: 3
+  journalnode:
+    host_name: journalnode
+    container_name: journalnode
+    number_nodes: 3
+  resourcemanager:
+    host_name: rm
+    container_name: rm
+    number_nodes: 2
+
+clustername: mycluster
+image_name: hadoopol/hdfs-yarn
+version: 3.3.0
+download_url: 'https://downloads.apache.org/hadoop/common/hadoop-{{version}}/hadoop-{{version}}.tar.gz'
+#download_url: 'file:///tmp/hadoop-{{version}}.tar.gz'

@@ -1,0 +1,259 @@
+- name: Cleaning temporary area before start
+  file:
+    path: '{{item}}'
+    state: absent
+  with_items:
+    - '{{role_path}}/tmp/'
+
+- name: Creating directories
+  file:
+    path: '{{item}}'
+    state: directory
+  with_items:
+    - '{{role_path}}/tmp/remote'
+    - '{{role_path}}/tmp/remote/hadoop-{{version}}/etc/hadoop'
+    - '{{role_path}}/tmp/local'
+
+- name: Preparing Dockerfile
+  template:
+    src: Dockerfile.j2
+    dest: '{{role_path}}/tmp/local/Dockerfile'
+
+- name: Preparing hdfs_yarn.sh
+  template:
+    src: hdfs_yarn.sh.j2
+    dest: '{{role_path}}/tmp/remote/hdfs_yarn.sh'
+    mode: "555"
+
+- name: Configuring hdfs-site.xml
+  template:
+    dest:  "{{role_path}}/tmp/remote/hadoop-{{version}}/etc/hadoop/hdfs-site.xml"
+    src: hdfs-site.xml.j2
+
+- name: Configuring yarn-site.xml
+  template:
+    dest:  "{{role_path}}/tmp/remote/hadoop-{{version}}/etc/hadoop/yarn-site.xml"
+    src: yarn-site.xml.j2
+
+- name: Configuring core-site.xml
+  template:
+    dest:  "{{role_path}}/tmp/remote/hadoop-{{version}}/etc/hadoop/core-site.xml"
+    src: core-site.xml.j2
+
+- name: Configuring mapred-site.xml
+  template:
+    dest:  "{{role_path}}/tmp/remote/hadoop-{{version}}/etc/hadoop/mapred-site.xml"
+    src: mapred-site.xml.j2
+
+- name: Creating tarball of configuration files to copy inside container
+  archive:
+    path: '{{role_path}}/tmp/remote/'
+    dest: '{{role_path}}/tmp/local/file.tar'
+
+- name: Downloading apache hdfs and yarn
+  get_url:
+    url: '{{download_url}}'
+    dest: '{{role_path}}/tmp/local/hadoop-{{version}}.tar.gz'
+
+- name: Stopping {{type.namenode.container_name}} container if running and removing
+  docker_container:
+    name: '{{type.namenode.container_name}}{{item}}.{{container_domain_name}}'
+    state: absent
+  with_sequence: count='{{type.namenode.number_nodes}}'
+
+- name: Stopping {{type.datanode.container_name}} container if running and removing
+  docker_container:
+    name: '{{type.datanode.container_name}}{{item}}.{{container_domain_name}}'
+    state: absent
+  with_sequence: count='{{type.datanode.number_nodes}}'
+
+- name: Stopping {{type.journalnode.container_name}} container if running and removing
+  docker_container:
+    name: '{{type.journalnode.container_name}}{{item}}.{{container_domain_name}}'
+    state: absent
+  with_sequence: count='{{type.journalnode.number_nodes}}'
+
+- name: Stopping {{type.resourcemanager.container_name}} container if running and removing
+  docker_container:
+    name: '{{type.resourcemanager.container_name}}{{item}}.{{container_domain_name}}'
+    state: absent
+  with_sequence: count='{{type.resourcemanager.number_nodes}}'
+
+- name: Removing old image {{image_name}}
+  docker_image:
+    name: '{{image_name}}'
+    tag: latest
+    state: absent
+
+- name: Creating new image
+  docker_image:
+    name: '{{image_name}}'
+    tag: latest
+    state: present
+    path: '{{role_path}}/tmp/local'
+    source: build
+    force_absent: no
+
+- name: Starting journalnode1 container
+  docker_container:
+    name: '{{type.journalnode.container_name}}{{item}}.{{container_domain_name}}'
+    image: '{{image_name}}'
+    networks_cli_compatible: yes
+    networks:
+      - name: '{{docker_network_name1}}'
+    interactive: yes
+    tty: yes
+    detach: yes
+    recreate: no
+    hostname: '{{type.journalnode.host_name}}{{item}}.{{container_domain_name}}'
+    published_ports: all
+  with_sequence: count='2'
+
+- name: Starting journalnode2 container
+  docker_container:
+    name: '{{type.journalnode.container_name}}3.{{container_domain_name}}'
+    image: '{{image_name}}'
+    networks_cli_compatible: yes
+    networks:
+      - name: '{{docker_network_name2}}'
+    interactive: yes
+    tty: yes
+    detach: yes
+    recreate: no
+    hostname: '{{type.journalnode.host_name}}3.{{container_domain_name}}'
+    published_ports: all
+
+- name: Starting namenode1 container
+  docker_container:
+    name: '{{type.namenode.container_name}}1.{{container_domain_name}}'
+    image: '{{image_name}}'
+    networks_cli_compatible: yes
+    networks:
+      - name: '{{docker_network_name1}}'
+    interactive: yes
+    tty: yes
+    detach: yes
+    recreate: no
+    hostname: '{{type.namenode.host_name}}1.{{container_domain_name}}'
+    published_ports: all
+    exposed_ports:
+      - 8020
+      - 8022
+      - 9870
+      - 9871
+      - 2049
+      - 4242
+      - 50079
+      - 50579
+
+- name: Starting namenode2 container
+  docker_container:
+    name: '{{type.namenode.container_name}}2.{{container_domain_name}}'
+    image: '{{image_name}}'
+    networks_cli_compatible: yes
+    networks:
+      - name: '{{docker_network_name2}}'
+    interactive: yes
+    tty: yes
+    detach: yes
+    recreate: no
+    hostname: '{{type.namenode.host_name}}2.{{container_domain_name}}'
+    published_ports: all
+    exposed_ports:
+      - 8020
+      - 8022
+      - 9870
+      - 9871
+      - 2049
+      - 4242
+      - 50079
+      - 50579
+
+- name: Starting datanode1 container
+  docker_container:
+    name: '{{type.datanode.container_name}}{{item}}.{{container_domain_name}}'
+    image: '{{image_name}}'
+    networks_cli_compatible: yes
+    networks:
+      - name: '{{docker_network_name1}}'
+    interactive: yes
+    tty: yes
+    detach: yes
+    recreate: no
+    hostname: '{{type.datanode.host_name}}{{item}}.{{container_domain_name}}'
+    published_ports: all
+    exposed_ports:
+      - 8042
+      - 8044
+      - 9866
+      - 1004
+      - 9864
+      - 9865
+      - 1006
+      - 9867
+  with_sequence: count='2'
+
+- name: Starting datanode2 container
+  docker_container:
+    name: '{{type.datanode.container_name}}3.{{container_domain_name}}'
+    image: '{{image_name}}'
+    networks_cli_compatible: yes
+    networks:
+      - name: '{{docker_network_name2}}'
+    interactive: yes
+    tty: yes
+    detach: yes
+    recreate: no
+    hostname: '{{type.datanode.host_name}}3.{{container_domain_name}}'
+    published_ports: all
+    exposed_ports:
+      - 8042
+      - 8044
+      - 9866
+      - 1004
+      - 9864
+      - 9865
+      - 1006
+      - 9867
+
+
+- name: Starting resourcemanager1 container
+  docker_container:
+    name: '{{type.resourcemanager.container_name}}1.{{container_domain_name}}'
+    image: '{{image_name}}'
+    networks_cli_compatible: yes
+    networks:
+      - name: '{{docker_network_name1}}'
+    interactive: yes
+    tty: yes
+    detach: yes
+    recreate: no
+    hostname: '{{type.resourcemanager.host_name}}1.{{container_domain_name}}'
+    published_ports: all
+    exposed_ports:
+      - 8032
+      - 8033
+      - 8088
+      - 8090
+
+
+- name: Starting resourcemanager2 container
+  docker_container:
+    name: '{{type.resourcemanager.container_name}}2.{{container_domain_name}}'
+    image: '{{image_name}}'
+    networks_cli_compatible: yes
+    networks:
+      - name: '{{docker_network_name2}}'
+    interactive: yes
+    tty: yes
+    detach: yes
+    recreate: no
+    hostname: '{{type.resourcemanager.host_name}}2.{{container_domain_name}}'
+    published_ports: all
+    exposed_ports:
+      - 8032
+      - 8033
+      - 8088
+      - 8090
+
+

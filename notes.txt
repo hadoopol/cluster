@@ -1,0 +1,6 @@
+start docker container: docker run --rm -ti --network hadoop --name zookeeper3.docker -h zookeeper3.docker hadoopol/zookeeper /bin/bash
+
+build only hdfs-yarn running only one role: ansible-playbook -i inventories/development/hosts --start-at-task "hdfs-yarn : Cleaning temporary area before start" hadoop.yml
+
+dynamic change to DEBUG log
+/hadoop-3.3.0/bin/hadoop daemonlog -setlevel dn_nm3.docker:9864 org.apache.hadoop.hdfs.server.datanode.DataNode DEBUG

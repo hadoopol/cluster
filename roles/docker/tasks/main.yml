@@ -1,0 +1,30 @@
+- name: Installing pip docker-py for as required by ansible docker_container module
+  pip:
+    name: docker-py
+
+
+- name: Checking if exist docker network
+  command: "docker network inspect '{{docker_network_name1}}'"
+  register: ret_code
+  ignore_errors: yes
+
+- name: Checking if exist docker network
+  command: "docker network inspect '{{docker_network_name2}}'"
+  register: ret_code
+  ignore_errors: yes
+
+- name: 'Creating docker network {{docker_network_name1}}'
+  command: docker network create '{{docker_network_name1}}'
+  ignore_errors: yes
+
+- name: 'Creating docker network {{docker_network_name2}}'
+  command: docker network create '{{docker_network_name2}}'
+  ignore_errors: yes
+
+- name: Pull base image for all containers
+  docker_image:
+    name: '{{docker_image}}'
+    state: present
+
+
+

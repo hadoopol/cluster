@@ -1,0 +1,120 @@
+- name: Cleaning temporary area before start
+  file:
+    path: '{{item}}'
+    state: absent
+  with_items:
+    - '{{role_path}}/tmp/'
+
+- name: Creating directories
+  file:
+    path: '{{item}}'
+    state: directory
+  with_items:
+    - '{{role_path}}/tmp/remote'
+    - '{{role_path}}/tmp/local'
+    - '{{role_path}}/tmp/remote/etc/zookeeper'
+    - '{{role_path}}/tmp/remote/var/lib/zookeeper'
+
+- name: Creating zoo.cfg file
+  blockinfile:
+    path: "{{role_path}}/tmp/remote/etc/zookeeper/zoo.cfg"
+    create: yes
+    marker: ";"
+    content: |
+      tickTime=2000
+      dataDir=/var/lib/zookeeper
+      clientPort=2181
+      initLimit=5
+      syncLimit=2
+
+- name: Adding servers in zoo.cfg file
+  lineinfile:
+    path:  "{{role_path}}/tmp/remote/etc/zookeeper/zoo.cfg"
+    state: present
+    line:  "server.{{item}}={{container_host_name}}{{item}}.{{container_domain_name}}:2888:3888"
+  with_sequence: count='{{num_servers}}'
+
+- name: Downloading zookeeper
+  get_url:
+    url: '{{download_url}}'
+    dest: '{{role_path}}/tmp/remote/zookeeper-{{version}}.tar.gz'
+
+- name: Preparing Dockerfile
+  template:
+    src: Dockerfile.j2
+    dest: '{{role_path}}/tmp/local/Dockerfile'
+
+- name: Preparing zookeeper_start.sh
+  template:
+    src: zookeeper_start.sh.j2
+    dest: '{{role_path}}/tmp/remote/zookeeper_start.sh'
+    mode: "555"
+
+- name: Preparing zookeeper_config.py
+  template:
+    src: zookeeper_config.py.j2
+    dest: '{{role_path}}/tmp/remote/zookeeper_config.py'
+    mode: "555"
+
+
+- name: Creating tarball of files to copy inside container
+  archive:
+    path: '{{role_path}}/tmp/remote/'
+    dest: '{{role_path}}/tmp/local/file.tar'
+
+- name: Stopping Zookeeper container if running and removing
+  docker_container:
+    name: '{{container_host_name}}{{item}}.{{container_domain_name}}'
+    state: absent
+  with_sequence: count='{{num_servers}}'
+
+
+- name: Removing old zookeeper image
+  docker_image:
+    name: '{{image_name}}'
+    tag: latest
+    state: absent
+
+- name: Creating zookeeper image
+  docker_image:
+    name: '{{image_name}}'
+    tag: latest
+    state: present
+    path: '{{role_path}}/tmp/local'
+    force: no
+
+- name: Starting zookeeper1 container
+  docker_container:
+    name: '{{container_host_name}}{{item}}.{{container_domain_name}}'
+    image: '{{image_name}}'
+    networks_cli_compatible: yes
+    networks:
+      - name: '{{docker_network_name1}}'
+    interactive: yes
+    tty: yes
+    detach: yes
+    recreate: no
+    hostname: '{{container_host_name}}{{item}}.{{container_domain_name}}'
+    published_ports: all
+    exposed_ports:
+      - 2181
+  with_sequence: count='2'
+
+- name: Starting zookeeper2 container
+  docker_container:
+    name: '{{container_host_name}}3.{{container_domain_name}}'
+    image: '{{image_name}}'
+    networks_cli_compatible: yes
+    networks:
+      - name: '{{docker_network_name2}}'
+    interactive: yes
+    tty: yes
+    detach: yes
+    recreate: no
+    hostname: '{{container_host_name}}3.{{container_domain_name}}'
+    published_ports: all
+    exposed_ports:
+      - 2181
+
+
+

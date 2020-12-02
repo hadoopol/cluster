@@ -1,0 +1,11 @@
+FROM {{docker_image}}
+COPY file.tar /
+COPY hadoop-{{version}}.tar.gz /
+RUN tar xzf /hadoop-{{version}}.tar.gz
+RUN tar xf /file.tar
+RUN rm -rf /hadoop-{{version}}/logs
+RUN ln -s /var/log /hadoop-{{version}}/logs
+RUN mkdir /etc/hadoop
+RUN ln -s /hadoop-{{version}}/etc/hadoop /etc/hadoop/conf
+WORKDIR /
+CMD /hdfs_yarn.sh start

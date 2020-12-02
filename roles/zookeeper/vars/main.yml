@@ -1,0 +1,9 @@
+---
+num_servers: 3
+container_domain_name: docker
+container_host_name: zookeeper
+container_name: zookeeper
+image_name: hadoopol/zookeeper
+version: 3.5.8
+download_url: 'http://ftp.ps.pl/pub/apache/zookeeper/zookeeper-{{version}}/apache-zookeeper-{{version}}-bin.tar.gz'
+#download_url: 'file:///tmp/apache-zookeeper-{{version}}-bin.tar.gz'

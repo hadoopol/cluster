@@ -1,0 +1,7 @@
+FROM {{docker_image}}
+COPY file.tar /
+RUN tar xf /file.tar
+RUN tar xzf /zookeeper-{{version}}.tar.gz
+EXPOSE 2181 2888 3888
+WORKDIR /
+CMD /zookeeper_start.sh

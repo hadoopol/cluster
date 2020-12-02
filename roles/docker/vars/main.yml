@@ -1,0 +1,4 @@
+---
+docker_network_name1: hadoop
+docker_network_name2: hadoop
+docker_image: 'docker.io/openjdk:8'
